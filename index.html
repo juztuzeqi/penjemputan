@@ -49,6 +49,12 @@
   }
   .hasil .nama { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
   .hasil .meta { color: #6b7280; font-size: 13px; }
+  .sibling-box {
+    margin-top: 10px; padding: 10px; border-radius: 8px;
+    background: #eff6ff; border: 1px solid #bfdbfe; font-size: 13px;
+  }
+  .sibling-box b { color: #1e40af; }
+  .sibling-box ul { margin: 6px 0 0 18px; padding: 0; }
   .riwayat-item {
     padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px;
   }
@@ -136,7 +142,7 @@ async function loadData() {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
-      if (i === 0 && line.toLowerCase().startsWith('kode')) continue; // skip header
+      if (i === 0 && line.toLowerCase().startsWith('kode')) continue;
 
       const parts = line.split(',').map(s => s.trim());
       let kode = '', nama = '', wa = '';
@@ -180,13 +186,32 @@ function prosesCari() {
   }
 
   const waNorm = normalisasiWA(found.wa);
-  const pesan = encodeURIComponent(`Halo, kami dari bimbel menginfokan bahwa ${found.nama} sudah siap dijemput. Terima kasih.`);
+
+  // Deteksi siblings: 1 nomor WA = 1 keluarga
+  const siblings = dbSiswa.filter(s => normalisasiWA(s.wa) === waNorm);
+  const isSiblings = siblings.length > 1;
+
+  // Subjek pesan: nama kalau tunggal, "anak-anak" kalau siblings
+  const subjek = isSiblings ? 'anak-anak' : found.nama;
+
+  const pesan = encodeURIComponent(
+    `Halo, kami dari bimbel menginfokan bahwa ${subjek} sudah siap dijemput. Terima kasih.`
+  );
   const waLink = `https://wa.me/${waNorm}?text=${pesan}`;
 
   hasilDiv.innerHTML = `
     <div class="hasil">
       <div class="nama">${escapeHtml(found.nama)}</div>
       <div class="meta">Kode: ${escapeHtml(found.kode || '-')} · WA: ${escapeHtml(found.wa)}</div>
+      ${isSiblings ? `
+        <div class="sibling-box">
+          <b>⚠️ ${siblings.length} siswa terdeteksi dengan WA yang sama:</b>
+          <ul>${siblings.map(s => `<li>${escapeHtml(s.nama)}</li>`).join('')}</ul>
+          <div style="margin-top:6px; color:#6b7280; font-size:12px;">
+            Pesan akan dikirim sebagai "anak-anak".
+          </div>
+        </div>
+      ` : ''}
       <button type="button" class="btn btn-wa" onclick="kirimWA('${escapeAttr(found.nama)}', '${waLink}')">
         💬 Kirim WA ke Orang Tua
       </button>
